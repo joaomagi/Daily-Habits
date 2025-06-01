@@ -1,40 +1,39 @@
-
-from langchain_core.runnables import RunnableLambda 
-
-
-from src.config import ia_model
-
-from src.helper import validate_habit_question
-from src.helper import to_json
-from src.helper import habits_ia
-
-
+from helper import validate_habit_question, habits_ai
+import json
 
 def main():
-     while True: 
+    print("Assistente de Criação de Hábitos (digite 'sair' para sair)\n")
+    
+    while True:
         try:
-            user_input = input("Vamos criar um habito: ")
-
-            if user_input.lower() == "sair":
+            user_input = input("Qual hábito você gostaria de criar?\n").strip()
+            
+            if user_input.lower() in ["sair"]:
                 print("Saindo....")
                 break
+                
+            if not user_input:
+                print("Por favor descreva um hábito válido\n")
+                continue
+                
+            if not validate_habit_question(user_input):
+                print("Isso não é um hábito. Por favor descreva um hábito que você gostaria de criar.\n")
+                continue
+                
+            response = habits_ai(user_input)
+            habit_data = json.loads(response.content)
+            
+            if not habit_data or "name" not in habit_data:
+                raise ValueError("Falha ao criar um hábito válido. Tente novamente.\n")
+            
+            print(json.dumps(habit_data, indent=2, ensure_ascii=False))
 
-            valid_question = RunnableLambda(validate_habit_question)        
-            json_question = RunnableLambda(to_json)
-            ia_answer = RunnableLambda(habits_ia)
-            groq = ia_model()
-    
-            chain = valid_question | json_question | ia_answer | groq
+        except json.JSONDecodeError:
+            print("Erro ao criar o hábito. Tente novamente.\n")
+        except ValueError as e:
+            print(f"Erro: {e}\n")
+        except Exception as e:
+            print(f"Um erro inesperado aconteceu: {e}\n")
 
-            response = chain.invoke(user_input)
-            print(response.content)
-
-            print("\nCaso queira sair digite Sair\n")
-
-        except ValueError as e: 
-            print("Tente novamente ")
-
-
-
-if __name__ == "__main__": 
+if __name__ == "__main__":
     main()
